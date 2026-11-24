@@ -1,0 +1,7 @@
+<?php
+// GET  -> the cart of the logged in user
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('GET');
+
+$user = require_login();
+json_out(['cart' => load_cart($user['id'])]);

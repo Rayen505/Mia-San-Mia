@@ -1,0 +1,325 @@
+/* =========================================================
+   admin.css – avatars, image picker, profile page,
+   administration pages, confirmation pop-up
+   ========================================================= */
+
+/* ---------- Avatar (profile photo) ---------- */
+.avatar {
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ececec;
+  border: 1px solid var(--fcb-line);
+}
+.avatar--letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--fcb-blue);
+  border-color: var(--fcb-blue);
+  color: white;
+  font-family: var(--fcb-sans);
+  font-weight: 700;
+}
+
+/* ---------- Image picker ---------- */
+.image-picker .form-label {
+  margin-bottom: 6px;
+  font-family: var(--fcb-sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: #222;
+}
+.image-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.image-picker-preview {
+  flex: 0 0 76px;
+  width: 76px;
+  height: 76px;
+  object-fit: cover;
+  border: 1px solid var(--fcb-line);
+  border-radius: 10px;
+  background: #f3f3f3;
+}
+.image-picker-preview.round {
+  border-radius: 50%;
+}
+.image-picker-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  font-family: var(--fcb-sans);
+  font-size: 11px;
+  color: #999;
+  text-align: center;
+}
+.image-picker-field {
+  flex: 1;
+  min-width: 0;
+}
+.image-picker .form-control {
+  height: auto;
+  padding: 8px 12px;
+}
+.image-picker .form-text {
+  font-family: var(--fcb-sans);
+  font-size: 12px;
+}
+
+/* ---------- Pop-ups of this part ---------- */
+.confirm-dialog {
+  --bs-modal-width: 460px;
+}
+.confirm-card {
+  padding: 30px 28px 24px;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  font-family: var(--fcb-sans);
+}
+.confirm-card h2 {
+  margin-bottom: 12px;
+  font-family: var(--fcb-serif);
+  font-size: 24px;
+  color: #111;
+}
+.confirm-body {
+  margin-bottom: 20px;
+  color: #444;
+  line-height: 1.5;
+}
+.confirm-body p {
+  margin-bottom: 12px;
+}
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.confirm-actions .btn {
+  --bs-btn-padding-y: 10px;
+  --bs-btn-padding-x: 20px;
+  --bs-btn-font-size: 15px;
+}
+
+.product-form-dialog {
+  --bs-modal-width: 780px;
+}
+.product-form-card {
+  padding: 34px 32px 26px;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  font-family: var(--fcb-sans);
+}
+.product-form-card h2 {
+  margin-bottom: 20px;
+  padding-right: 40px;
+  font-family: var(--fcb-serif);
+  font-size: 28px;
+  color: #111;
+}
+.product-form-card .product-textarea {
+  height: auto;
+  padding: 10px 14px;
+}
+.size-checks {
+  display: flex;
+  flex-wrap: wrap;
+  padding-top: 8px;
+}
+.product-form-card .form-check-input:checked {
+  background-color: var(--fcb-red);
+  border-color: var(--fcb-red);
+}
+.product-form-card .form-switch {
+  padding-left: 3.2em;
+}
+.product-form-card .form-switch .form-check-input {
+  height: 1.3em;
+  width: 2.4em;
+  margin-left: -3.2em;
+}
+
+/* ---------- Profile page ---------- */
+.profile-card {
+  padding: 32px 24px;
+  background: white;
+  border: 1px solid var(--fcb-line);
+  border-radius: 14px;
+  text-align: center;
+}
+.profile-card .avatar {
+  margin-bottom: 14px;
+  border: 3px solid white;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+.profile-card h2 {
+  margin-bottom: 2px;
+  font-family: var(--fcb-serif);
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
+.profile-email {
+  margin-bottom: 10px;
+  color: #777;
+  overflow-wrap: anywhere;
+}
+.profile-since {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: #888;
+}
+
+.profile-box {
+  display: block;
+  margin-bottom: 20px;
+  padding: 26px;
+  background: white;
+  border: 1px solid var(--fcb-line);
+  border-radius: 14px;
+}
+.profile-box h2 {
+  margin-bottom: 18px;
+  font-family: var(--fcb-serif);
+  font-size: 22px;
+}
+.profile-danger {
+  border-color: #f1b8c0;
+  background: #fff7f8;
+}
+.profile-danger p {
+  color: #666;
+}
+
+/* ---------- Administration ---------- */
+.admin-tabs {
+  margin-bottom: 24px;
+  font-family: var(--fcb-sans);
+}
+.admin-tabs .nav-link {
+  color: #444;
+  font-weight: 700;
+}
+.admin-tabs .nav-link.active {
+  color: var(--fcb-blue);
+  border-bottom-color: white;
+}
+
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.admin-toolbar h2 {
+  margin: 0;
+  font-family: var(--fcb-serif);
+  font-size: 26px;
+}
+.admin-count {
+  color: #888;
+  font-size: 18px;
+  font-weight: 400;
+}
+.admin-toolbar .btn {
+  --bs-btn-padding-y: 10px;
+  --bs-btn-padding-x: 20px;
+  --bs-btn-font-size: 15px;
+}
+
+.admin-table-box {
+  background: white;
+  border: 1px solid var(--fcb-line);
+  border-radius: 14px;
+}
+.admin-table {
+  min-width: 860px; /* on a phone the table scrolls inside its box instead of squeezing the columns */
+  margin: 0;
+  font-size: 14px;
+}
+.admin-table td:nth-child(2) {
+  min-width: 230px;
+}
+.admin-table th {
+  padding: 14px 12px;
+  background: #f7f7f7;
+  color: #555;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.admin-table td {
+  padding: 12px;
+}
+.admin-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+.admin-info {
+  max-width: 320px;
+  color: #777;
+  font-size: 13px;
+}
+.admin-sizes {
+  display: block;
+  margin-top: 4px;
+  color: #888;
+  font-size: 12px;
+}
+
+.order-customer {
+  margin: 0;
+  font-family: var(--fcb-sans);
+  font-size: 16px;
+  font-weight: 700;
+}
+.status-box {
+  min-width: 150px;
+}
+.status-box .form-select {
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.status-confirmed {
+  border-color: #0d6efd;
+  color: #0d6efd;
+}
+.status-shipped {
+  border-color: #0dcaf0;
+  color: #087990;
+}
+.status-delivered {
+  border-color: #198754;
+  color: #198754;
+}
+.status-cancelled {
+  border-color: #6c757d;
+  color: #6c757d;
+}
+
+@media (max-width: 575.98px) {
+  .image-picker-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .image-picker-preview {
+    align-self: center;
+  }
+  .product-form-card,
+  .confirm-card {
+    padding: 24px 18px 20px;
+  }
+}

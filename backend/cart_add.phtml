@@ -1,0 +1,123 @@
+<?php
+// POST { product_id, quantity, size, print_name, print_number }
+// -> adds a shirt to the cart. The cart is saved directly in the database.
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+$user = require_login();
+$data = read_json();
+$pdo  = db();
+
+// 1. the product must exist. The PRICE always comes from the database, never from the browser.
+$stmt = $pdo->prepare('SELECT * FROM products WHERE id = ?');
+$stmt->execute([isset($data['product_id']) ? (int) $data['product_id'] : 0]);
+$product = $stmt->fetch();
+if (!$product) {
+    fail('This product does not exist.', 404);
+}
+
+// 2. check what the user chose
+$errors   = [];
+$quantity = whole_number(isset($data['quantity']) ? $data['quantity'] : 1, 1, MAX_PER_LINE);
+if ($quantity === null) {
+    $errors['quantity'] = 'Quantity must be between 1 and ' . MAX_PER_LINE . '.';
+}
+
+$sizes = $product['sizes'] === '' ? [] : explode(',', $product['sizes']);
+$size  = isset($data['size']) && is_string($data['size']) ? trim($data['size']) : '';
+if ($sizes && !in_array($size, $sizes, true)) {
+    $errors['size'] = 'Please choose a size.';
+}
+if (!$sizes) {
+    $size = '';
+}
+
+// the colour (Red / White ...). The price of the colour is calculated here, not by the browser.
+$colorCode = '';
+$lineName  = $product['name'];       // name written on the order line (the colour can change it: Away Kit)
+$unitPrice = round((float) $product['price'], 2);
+$colors    = colors_for_product($product['id']);
+if ($colors) {
+    $askedColor = isset($data['color']) && is_string($data['color']) ? trim($data['color']) : '';
+    if ($askedColor === '') {
+        $askedColor = $colors[0]['code'];       // no colour sent: the first one (Red)
+    }
+    $chosen = null;
+    foreach ($colors as $c) {
+        if ($c['code'] === $askedColor) {
+            $chosen = $c;
+        }
+    }
+    if ($chosen === null) {
+        $errors['color'] = 'Please choose a colour.';
+    } else {
+        $colorCode = $chosen['code'];
+        $unitPrice = discounted_price($product['price'], $chosen['discount_percent']);
+        $lineName  = color_text($chosen['name'], $product['name']);
+    }
+}
+
+$printName   = '';
+$printNumber = null;
+if ((int) $product['printable'] === 1) {
+    $rawName = clean_text(isset($data['print_name']) ? $data['print_name'] : '', 12);
+    if ($rawName === null || !preg_match('/^[\p{L} .\'\-]*$/u', $rawName)) {
+        $errors['print_name'] = 'The name can have 12 letters at most.';
+    } else {
+        $printName = upper($rawName);
+    }
+
+    $rawNumber = isset($data['print_number']) ? $data['print_number'] : null;
+    if ($rawNumber !== null && $rawNumber !== '') {
+        $printNumber = whole_number($rawNumber, 0, 99);
+        if ($printNumber === null) {
+            $errors['print_number'] = 'The number must be between 0 and 99.';
+        }
+    }
+}
+if ($errors) {
+    fail('Please check your choice.', 422, $errors);
+}
+
+// 3. save it. Everything or nothing (transaction).
+$pdo->beginTransaction();
+try {
+    $cartId = find_open_cart_id($user['id']);
+    if ($cartId === null) {
+        $pdo->prepare("INSERT INTO orders (user_id, status) VALUES (?, 'cart')")->execute([$user['id']]);
+        $cartId = (int) $pdo->lastInsertId();
+    }
+
+    // the same shirt (same colour, size, name and number) is only one line: we add to its quantity
+    $sql    = 'SELECT id, quantity FROM order_items
+                WHERE order_id = ? AND product_id = ? AND size = ? AND print_name = ? AND color = ? AND '
+            . ($printNumber === null ? 'print_number IS NULL' : 'print_number = ?');
+    $params = [$cartId, $product['id'], $size, $printName, $colorCode];
+    if ($printNumber !== null) {
+        $params[] = $printNumber;
+    }
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $line = $stmt->fetch();
+
+    if ($line) {
+        $newQuantity = (int) $line['quantity'] + $quantity;
+        if ($newQuantity > MAX_PER_LINE) {
+            $pdo->rollBack();
+            fail('You can order at most ' . MAX_PER_LINE . ' of the same shirt.', 422);
+        }
+        $pdo->prepare('UPDATE order_items SET quantity = ? WHERE id = ?')->execute([$newQuantity, $line['id']]);
+    } else {
+        $pdo->prepare(
+            'INSERT INTO order_items (order_id, product_id, product_name, size, print_name, print_number, color, unit_price, quantity)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([$cartId, $product['id'], $lineName, $size, $printName, $printNumber, $colorCode, $unitPrice, $quantity]);
+    }
+    $pdo->commit();
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    throw $e;
+}
+
+json_out(['cart' => load_cart($user['id'])], 201);

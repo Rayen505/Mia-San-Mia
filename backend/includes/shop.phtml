@@ -1,0 +1,233 @@
+<?php
+// =====================================================================
+//  Functions about products, the cart and the orders.
+//  A "cart" is just an order whose status is 'cart' (it lives in the
+//  database, not in the browser). "Place order" changes it to 'confirmed'.
+// =====================================================================
+
+require_once __DIR__ . '/helpers.phtml';
+require_once __DIR__ . '/uploads.phtml';
+
+const MAX_PER_LINE = 10;
+
+// Price after a discount in percent. It is calculated in cents so there are no surprises with decimals:
+// 99.95 with 30% off = 69.97
+function discounted_price($price, $percent)
+{
+    $cents = (int) round((float) $price * 100);
+    return round($cents * (100 - (int) $percent) / 100) / 100;
+}
+
+// a colour can have its own name / description (White = "FC Bayern Away Kit"); empty = the one of the product
+function color_text($own, $fallback)
+{
+    return $own !== null && trim($own) !== '' ? $own : $fallback;
+}
+
+// the colours of a product (Red, White ...), best first: [ [code, label, swatch, image, name, description, discount_percent], ... ]
+function colors_for_product($productId)
+{
+    $stmt = db()->prepare('SELECT * FROM product_colors WHERE product_id = ? ORDER BY sort_order, id');
+    $stmt->execute([$productId]);
+    return $stmt->fetchAll();
+}
+
+// the colours of all the products: [ productId => [ colour, ... ] ]  (one query for the whole store)
+function colors_of_all_products()
+{
+    $result = [];
+    foreach (db()->query('SELECT * FROM product_colors ORDER BY product_id, sort_order, id')->fetchAll() as $row) {
+        $result[(int) $row['product_id']][] = $row;
+    }
+    return $result;
+}
+
+// database row -> the shape the Vue website expects. $colors: the colour rows of this product (loaded if not given)
+function product_to_json($row, $colors = null)
+{
+    if ($colors === null) {
+        $colors = colors_for_product($row['id']);
+    }
+    $list = [];
+    foreach ($colors as $c) {
+        $list[] = [
+            'code'     => $c['code'],
+            'label'    => $c['label'],
+            'swatch'   => $c['swatch'],
+            'img'      => $c['image'] !== null && $c['image'] !== '' ? $c['image'] : $row['image'],   // no picture = the product's one
+            'name'     => color_text($c['name'], $row['name']),                                       // Red: "Home Kit", White: "Away Kit"
+            'desc'     => color_text($c['description'], $row['description']),
+            'discount' => (int) $c['discount_percent'],
+            'price'    => discounted_price($row['price'], $c['discount_percent']),                    // the server gives the price
+        ];
+    }
+    return [
+        'id'       => (int) $row['id'],
+        'name'     => $row['name'],
+        'cat'      => $row['category'],
+        'price'    => round((float) $row['price'], 2),
+        'img'      => $row['image'],
+        'info'     => $row['short_info'],
+        'desc'     => $row['description'],
+        'sizes'    => $row['sizes'] === '' ? [] : explode(',', $row['sizes']),
+        'print'    => (bool) (int) $row['printable'],
+        'featured' => (bool) (int) $row['featured'],
+        'colors'   => $list,
+    ];
+}
+
+// id of the open cart of a user, or null if he has none yet
+function find_open_cart_id($userId)
+{
+    $stmt = db()->prepare("SELECT id FROM orders WHERE user_id = ? AND status = 'cart' ORDER BY id LIMIT 1");
+    $stmt->execute([$userId]);
+    $id = $stmt->fetchColumn();
+    return $id === false ? null : (int) $id;
+}
+
+// lines of several orders: [ orderId => [ item, item ... ] ]
+function load_items($orderIds)
+{
+    $result = [];
+    if (!$orderIds) {
+        return $result;
+    }
+    $marks = implode(',', array_fill(0, count($orderIds), '?'));
+    $stmt  = db()->prepare(
+        'SELECT oi.id, oi.order_id, oi.product_id, oi.product_name, oi.size, oi.print_name,
+                oi.print_number, oi.color, oi.unit_price, oi.quantity, p.image,
+                pc.label AS color_label, pc.image AS color_image
+           FROM order_items oi
+      LEFT JOIN products p ON p.id = oi.product_id
+      LEFT JOIN product_colors pc ON pc.product_id = oi.product_id AND pc.code = oi.color
+          WHERE oi.order_id IN (' . $marks . ')
+          ORDER BY oi.id'
+    );
+    $stmt->execute(array_values($orderIds));
+
+    foreach ($stmt->fetchAll() as $row) {
+        $price = round((float) $row['unit_price'], 2);
+        $qty   = (int) $row['quantity'];
+        $result[(int) $row['order_id']][] = [
+            'id'           => (int) $row['id'],
+            'product_id'   => $row['product_id'] === null ? null : (int) $row['product_id'],
+            'name'         => $row['product_name'],
+            'img'          => $row['color_image'] ? $row['color_image'] : $row['image'],   // picture of the colour; null if the product was deleted
+            'color'        => $row['color'] === '' ? '' : ($row['color_label'] ? $row['color_label'] : ucfirst($row['color'])),
+            'color_code'   => $row['color'],
+            'size'         => $row['size'],
+            'print_name'   => $row['print_name'],
+            'print_number' => $row['print_number'] === null ? null : (int) $row['print_number'],
+            'unit_price'   => $price,
+            'quantity'     => $qty,
+            'line_total'   => round($price * $qty, 2),
+        ];
+    }
+    return $result;
+}
+
+// count of shirts + total price of a list of lines
+function sum_items($items)
+{
+    $count = 0;
+    $cents = 0;
+    foreach ($items as $item) {
+        $count += $item['quantity'];
+        $cents += (int) round($item['unit_price'] * 100) * $item['quantity'];
+    }
+    return [$count, $cents / 100];
+}
+
+function load_cart($userId)
+{
+    $cartId = find_open_cart_id($userId);
+    $items  = [];
+    if ($cartId !== null) {
+        $all   = load_items([$cartId]);
+        $items = isset($all[$cartId]) ? $all[$cartId] : [];
+    }
+    list($count, $total) = sum_items($items);
+    return ['id' => $cartId, 'items' => $items, 'count' => $count, 'total' => $total];
+}
+
+function order_to_json($row, $items)
+{
+    list($count, ) = sum_items($items);
+    return [
+        'id'         => (int) $row['id'],
+        'status'     => $row['status'],
+        'total'      => round((float) $row['total'], 2),
+        'ordered_at' => $row['ordered_at'],
+        'count'      => $count,
+        'items'      => $items,
+    ];
+}
+
+// whole numbers only; returns null when the value is not a whole number in the range
+function whole_number($value, $min, $max)
+{
+    $n = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => $min, 'max_range' => $max]]);
+    return $n === false ? null : $n;
+}
+
+
+// ---------- products (used by the administrator pages) ----------
+
+const ALLOWED_SIZES      = ['S', 'M', 'L', 'XL', 'XXL'];
+const ALLOWED_CATEGORIES = ['red', 'white', 'dark', 'other'];
+
+function is_yes($value)
+{
+    return in_array($value, ['1', 'true', 'on', 'yes', 1, true], true);
+}
+
+// Checks the product form. Fills $errors (field => message) and returns the clean values.
+function validate_product($data, &$errors)
+{
+    $name  = clean_text(isset($data['name']) ? $data['name'] : '', 120);
+    $info  = clean_text(isset($data['short_info']) ? $data['short_info'] : '', 255);
+    $desc  = clean_text(isset($data['description']) ? $data['description'] : '', 2000);
+    $cat   = isset($data['category']) ? (string) $data['category'] : '';
+    $price = str_replace(',', '.', trim(isset($data['price']) ? (string) $data['price'] : ''));
+
+    if ($name === null || text_length($name) < 2) {
+        $errors['name'] = 'Please enter a name (2 to 120 characters).';
+    }
+    if (!in_array($cat, ALLOWED_CATEGORIES, true)) {
+        $errors['category'] = 'Please choose a category.';
+    }
+    if (!preg_match('/^\d{1,4}(\.\d{1,2})?$/', $price) || (float) $price < 0.01) {
+        $errors['price'] = 'Enter a price between 0.01 and 9999.99.';
+    }
+    if ($info === null || $info === '') {
+        $errors['short_info'] = 'Please write a short line (255 characters maximum).';
+    }
+    if ($desc === null || $desc === '') {
+        $errors['description'] = 'Please write a description (2000 characters maximum).';
+    }
+
+    // sizes: comma separated list, e.g. "S,M,L"
+    $sizes = [];
+    foreach (explode(',', isset($data['sizes']) ? (string) $data['sizes'] : '') as $size) {
+        $size = trim($size);
+        if ($size === '') {
+            continue;
+        }
+        if (!in_array($size, ALLOWED_SIZES, true)) {
+            $errors['sizes'] = 'Unknown size: ' . $size;
+        }
+        $sizes[$size] = true;
+    }
+    $sizes = array_values(array_intersect(ALLOWED_SIZES, array_keys($sizes)));   // keeps S, M, L, XL, XXL order
+
+    return [
+        'name'        => (string) $name,
+        'category'    => $cat,
+        'price'       => number_format((float) $price, 2, '.', ''),
+        'short_info'  => (string) $info,
+        'description' => (string) $desc,
+        'sizes'       => implode(',', $sizes),
+        'printable'   => is_yes(isset($data['printable']) ? $data['printable'] : '0') ? 1 : 0,
+        'featured'    => is_yes(isset($data['featured']) ? $data['featured'] : '0') ? 1 : 0,
+    ];
+}

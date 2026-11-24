@@ -1,0 +1,18 @@
+<?php
+// GET  -> the confirmed orders (commandes) of the logged in user, newest first
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('GET');
+$user = require_login();
+
+$stmt = db()->prepare("SELECT id, status, total, ordered_at FROM orders WHERE user_id = ? AND status <> 'cart' ORDER BY id DESC");
+$stmt->execute([$user['id']]);
+$rows = $stmt->fetchAll();
+
+$ids   = array_map(function ($row) { return (int) $row['id']; }, $rows);
+$items = load_items($ids);
+
+$orders = [];
+foreach ($rows as $row) {
+    $orders[] = order_to_json($row, isset($items[(int) $row['id']]) ? $items[(int) $row['id']] : []);
+}
+json_out(['orders' => $orders]);

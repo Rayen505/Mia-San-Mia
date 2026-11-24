@@ -1,0 +1,22 @@
+<?php
+// ADMIN - UPDATE the status of an order.  POST { order_id, status }
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+require_admin();
+$data = read_json();
+$pdo  = db();
+
+$orderId = whole_number(isset($data['order_id']) ? $data['order_id'] : null, 1, PHP_INT_MAX);
+$status  = isset($data['status']) ? (string) $data['status'] : '';
+if (!in_array($status, ['confirmed', 'shipped', 'delivered', 'cancelled'], true)) {
+    fail('Unknown status.', 422, ['status' => 'Unknown status.']);
+}
+
+$stmt = $pdo->prepare("SELECT id FROM orders WHERE id = ? AND status <> 'cart'");
+$stmt->execute([(int) $orderId]);
+if (!$stmt->fetch()) {
+    fail('This order does not exist.', 404);
+}
+
+$pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $orderId]);
+json_out(['ok' => true, 'status' => $status]);

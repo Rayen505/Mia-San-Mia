@@ -1,0 +1,2 @@
+# Makes Apache (WAMP) run the .phtml files as PHP
+AddType application/x-httpd-php .phtml

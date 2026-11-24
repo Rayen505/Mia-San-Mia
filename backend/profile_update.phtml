@@ -1,0 +1,51 @@
+<?php
+// POST (multipart form) { name, email, photo (optional) } -> updates the profile of the logged in user
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+$user = require_login();
+$data = read_form();
+$pdo  = db();
+
+$name  = clean_text(isset($data['name']) ? $data['name'] : '', 60);
+$email = strtolower(trim(isset($data['email']) && is_string($data['email']) ? $data['email'] : ''));
+list($photo, $photoError) = inspect_upload('photo');
+
+$errors = [];
+if ($name === null || text_length($name) < 2) {
+    $errors['name'] = 'Please enter your full name (2 to 60 characters).';
+}
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 120) {
+    $errors['email'] = 'Please enter a valid email address.';
+}
+if ($photoError !== null) {
+    $errors['photo'] = $photoError;
+}
+if ($errors) {
+    fail('Please check the form.', 422, $errors);
+}
+
+// the email must not belong to somebody else
+$stmt = $pdo->prepare('SELECT id FROM users WHERE email = ? AND id <> ?');
+$stmt->execute([$email, $user['id']]);
+if ($stmt->fetch()) {
+    fail('This email is already used by another account.', 409, ['email' => 'This email is already used by another account.']);
+}
+
+$newPhoto = $photo ? store_upload($photo, 'avatars') : null;
+try {
+    $pdo->prepare('UPDATE users SET name = ?, email = ?, photo = ? WHERE id = ?')
+        ->execute([$name, $email, $newPhoto !== null ? $newPhoto : $user['photo'], $user['id']]);
+} catch (PDOException $e) {
+    if ($newPhoto !== null) {
+        delete_upload($newPhoto);
+    }
+    if ($e->getCode() === '23000') {
+        fail('This email is already used by another account.', 409, ['email' => 'This email is already used by another account.']);
+    }
+    throw $e;
+}
+if ($newPhoto !== null) {
+    delete_upload($user['photo']);          // the old photo is not needed any more
+}
+
+json_out(['user' => current_user()]);

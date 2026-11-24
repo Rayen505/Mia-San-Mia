@@ -1,0 +1,13 @@
+<?php
+// GET  -> all the products of the store (only for logged in users)
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('GET');
+require_login();
+
+$rows   = db()->query('SELECT * FROM products ORDER BY id')->fetchAll();
+$colors = colors_of_all_products();
+$list   = [];
+foreach ($rows as $row) {
+    $list[] = product_to_json($row, isset($colors[(int) $row['id']]) ? $colors[(int) $row['id']] : []);
+}
+json_out(['products' => $list]);

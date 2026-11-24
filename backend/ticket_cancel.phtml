@@ -1,0 +1,17 @@
+<?php
+// POST { ticket_id } -> the user cancels one of his tickets (the seat is free again)
+require_once __DIR__ . '/includes/tickets.phtml';
+require_method('POST');
+$user = require_login();
+$data = read_json();
+$pdo  = db();
+
+$ticketId = whole_number(isset($data['ticket_id']) ? $data['ticket_id'] : null, 1, PHP_INT_MAX);
+$stmt = $pdo->prepare('SELECT id FROM tickets WHERE id = ? AND user_id = ?');
+$stmt->execute([(int) $ticketId, $user['id']]);
+if (!$stmt->fetch()) {
+    fail('This ticket does not exist.', 404);
+}
+
+$pdo->prepare('DELETE FROM tickets WHERE id = ?')->execute([$ticketId]);
+json_out(['ok' => true]);

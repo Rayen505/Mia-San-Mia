@@ -1,0 +1,2 @@
+# The virtual database file (bayern.sqlite) must never be downloadable
+Require all denied

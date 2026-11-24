@@ -1,0 +1,352 @@
+/* =========================================================
+   layout.css – header, footer, news ticker, toast
+   ========================================================= */
+
+/* ---------- Black promo bar (home page only) ---------- */
+.promo-bar {
+  background: black;
+  color: white;
+}
+
+.promo-inner {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.spon {
+  height: 24px;
+  width: auto;
+  display: block;
+}
+
+.promo-text-line {
+  margin: 0 auto;
+  text-align: center;
+}
+
+.promo-link {
+  color: white;
+  font-weight: 700;
+  text-decoration: underline;
+}
+.promo-link:hover {
+  color: #ddd;
+}
+
+/* ---------- Main header (Bootstrap navbar) ---------- */
+.main-header {
+  --bs-navbar-nav-link-padding-x: 0;
+  min-height: 90px;
+  background: var(--fcb-bg);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.main-header .navbar-brand {
+  padding: 0;
+  margin-right: 0;
+}
+
+.logo {
+  height: 48px;
+  width: auto;
+  display: block;
+}
+
+.main-nav .nav-link {
+  padding: 0;
+  color: #222;
+  font-size: 20px;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+.main-nav .nav-link:hover {
+  color: #da291c;
+}
+
+/* link of the page we are on */
+.main-nav .nav-link.current {
+  color: var(--fcb-blue);
+  border-bottom: 3px solid var(--fcb-blue);
+  padding-bottom: 2px;
+}
+.main-nav .nav-link.current:hover {
+  color: var(--fcb-blue-dark);
+  border-bottom-color: var(--fcb-blue-dark);
+}
+
+.header-icons {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-left: auto;
+}
+
+.icon-link {
+  position: relative;
+  display: flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #111;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.icon-link:hover {
+  color: var(--fcb-red);
+}
+.icon-link svg {
+  width: 26px;
+  height: 26px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cart-count {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--fcb-red);
+  color: white;
+  font-family: var(--fcb-sans);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar-toggler {
+  padding: 6px 8px;
+  border-color: #ccc;
+}
+.navbar-toggler:focus {
+  box-shadow: 0 0 0 3px rgba(0, 102, 178, 0.25);
+}
+
+/* phones: the menu opens under the header */
+@media (max-width: 767.98px) {
+  .logo {
+    height: 38px;
+  }
+  .main-header .navbar-collapse {
+    padding: 8px 0 16px;
+  }
+  .main-nav .nav-item {
+    padding: 8px 0;
+    border-top: 1px solid var(--fcb-line);
+  }
+  .main-nav .nav-link {
+    display: inline-block;
+    font-size: 18px;
+  }
+}
+
+/* tablets and computers: links next to the logo */
+@media (min-width: 768px) {
+  .main-nav {
+    gap: 30px;
+    margin-left: 40px;
+  }
+}
+@media (min-width: 1200px) {
+  .main-nav {
+    margin-left: 105px;
+  }
+}
+
+/* ---------- Footer ---------- */
+.site-footer {
+  background: #e6e6e6;
+  color: #444;
+  padding-top: 50px;
+  padding-bottom: 50px;
+  font-family: var(--fcb-sans);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ---------- Fixed news ticker ---------- */
+.ticker {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: var(--ticker-height);
+  background: var(--fcb-red);
+  color: white;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  z-index: 1000;
+  font-family: var(--fcb-sans);
+}
+
+.ticker-label {
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  background: var(--fcb-blue);
+  font-weight: 700;
+  font-size: 15px;
+  position: relative;
+  z-index: 1;
+}
+
+.ticker-window {
+  flex: 1;
+  overflow: hidden;
+}
+
+.ticker-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: scroll-left 60s linear infinite;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+.ticker-track span {
+  padding: 0 40px;
+  font-size: 15px;
+}
+
+/* the track holds the list twice, so moving it by half loops seamlessly */
+@keyframes scroll-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 575.98px) {
+  .ticker-label {
+    padding: 0 12px;
+    font-size: 13px;
+  }
+}
+
+/* ---------- Toast message ---------- */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 70px;
+  transform: translate(-50%, 20px);
+  max-width: calc(100% - 32px);
+  padding: 14px 24px;
+  border-radius: 8px;
+  background: #111;
+  color: white;
+  font-family: var(--fcb-sans);
+  font-weight: 700;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+  z-index: 1300;
+}
+.app-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation-duration: 180s;
+  }
+  .app-toast {
+    transition: none;
+  }
+}
+
+/* ---------- Account menu (name of the logged in user) ---------- */
+.account-menu {
+  position: relative;
+}
+
+.account-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 170px;
+  padding: 6px 2px;
+  border: 0;
+  background: none;
+  color: #111;
+  font-family: var(--fcb-serif);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.account-btn:hover {
+  color: var(--fcb-red);
+}
+
+.account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-caret {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.account-dropdown {
+  left: auto;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 220px;
+  font-family: var(--fcb-sans);
+}
+.account-who {
+  display: flex;
+  flex-direction: column;
+  max-width: 260px;
+  padding: 8px 16px 10px;
+  border-bottom: 1px solid var(--fcb-line);
+  margin-bottom: 6px;
+}
+.account-who strong,
+.account-who span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-who span {
+  font-size: 13px;
+  color: #777;
+}
+
+@media (max-width: 575.98px) {
+  .account-btn {
+    max-width: 130px;
+    font-size: 15px;
+  }
+  .header-icons {
+    gap: 14px;
+  }
+}

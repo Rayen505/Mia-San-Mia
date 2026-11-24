@@ -1,0 +1,33 @@
+<?php
+// ADMIN - DELETE a product.  POST { id }
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+require_admin();
+$data = read_json();
+$pdo  = db();
+
+$id   = whole_number(isset($data['id']) ? $data['id'] : null, 1, PHP_INT_MAX);
+$stmt = $pdo->prepare('SELECT * FROM products WHERE id = ?');
+$stmt->execute([(int) $id]);
+$product = $stmt->fetch();
+if (!$product) {
+    fail('This product does not exist.', 404);
+}
+
+$pdo->beginTransaction();
+try {
+    // the product disappears from the carts that are not confirmed yet ...
+    $pdo->prepare("DELETE FROM order_items WHERE product_id = ? AND order_id IN (SELECT id FROM orders WHERE status = 'cart')")
+        ->execute([$product['id']]);
+    // ... but old orders keep their lines (name and price were copied; product_id becomes NULL)
+    $pdo->prepare('DELETE FROM products WHERE id = ?')->execute([$product['id']]);
+    $pdo->commit();
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    throw $e;
+}
+delete_upload($product['image']);
+
+json_out(['ok' => true]);

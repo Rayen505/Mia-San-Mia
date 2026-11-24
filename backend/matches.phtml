@@ -1,0 +1,7 @@
+<?php
+// GET  -> the matches (home page and tickets page)
+require_once __DIR__ . '/includes/tickets.phtml';
+require_method('GET');
+
+$rows = db()->query('SELECT * FROM matches ORDER BY id')->fetchAll();
+json_out(['matches' => array_map('match_to_json', $rows)]);

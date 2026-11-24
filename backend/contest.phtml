@@ -1,0 +1,53 @@
+<?php
+// POST -> saves an entry of the "Win a free jersey" form (one entry per email)
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+$user = require_login();
+$data = read_json();
+
+$get = function ($key, $max) use ($data) {
+    return clean_text(isset($data[$key]) ? $data[$key] : '', $max);
+};
+$name    = $get('name', 80);
+$email   = strtolower(trim(isset($data['email']) && is_string($data['email']) ? $data['email'] : ''));
+$phone   = $get('phone', 30);
+$country = $get('country', 60);
+$size    = $get('size', 10);
+$player  = $get('player', 60);
+$answer  = $get('answer', 140);
+
+$errors = [];
+if ($name === null || text_length($name) < 2)                { $errors['name']    = 'Please enter your name.'; }
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 120) { $errors['email'] = 'Please enter a valid email address.'; }
+if ($phone === null || !preg_match('/^[0-9 +().\-]{6,30}$/', $phone)) { $errors['phone']   = 'Please enter a valid phone number.'; }
+if ($country === null || $country === '')                    { $errors['country'] = 'Please enter your country.'; }
+if (!in_array($size, ['S', 'M', 'L', 'XL', 'XXL'], true))    { $errors['size']    = 'Please choose a size.'; }
+if ($player === null || $player === '')                      { $errors['player']  = 'Please tell us your favourite player.'; }
+if ($answer === null || $answer === '')                      { $errors['answer']  = 'Please write a short answer (140 characters maximum).'; }
+if (empty($data['terms']))                                   { $errors['terms']   = 'You must accept the rules.'; }
+if ($errors) {
+    fail('Please check the form.', 422, $errors);
+}
+
+$pdo  = db();
+
+$stmt = $pdo->prepare('SELECT id FROM contest_entries WHERE email = ?');
+$stmt->execute([$email]);
+$already = ['email' => 'This email has already entered.'];
+if ($stmt->fetch()) {
+    fail('This email has already entered the competition.', 409, $already);
+}
+
+try {
+    $pdo->prepare(
+        'INSERT INTO contest_entries (user_id, full_name, email, phone, country, jersey_size, favourite_player, answer)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    )->execute([$user['id'], $name, $email, $phone, $country, $size, $player, $answer]);
+} catch (PDOException $e) {
+    if ($e->getCode() === '23000') {
+        fail('This email has already entered the competition.', 409, $already);
+    }
+    throw $e;
+}
+
+json_out(['ok' => true, 'name' => $name], 201);

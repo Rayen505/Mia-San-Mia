@@ -1,0 +1,281 @@
+/* =========================================================
+   main.css – colours, fonts, Bootstrap overrides and the
+   small pieces used on every page (buttons, filters, forms)
+   ========================================================= */
+
+:root {
+  --fcb-red: #dc052d;
+  --fcb-red-dark: #b00424;
+  --fcb-blue: #0066b2;
+  --fcb-blue-dark: #004f8a;
+  --fcb-bg: #fafafa;
+  --fcb-ink: #111;
+  --fcb-line: #e2e2e2;
+  --fcb-serif: Georgia, "Times New Roman", serif;
+  --fcb-sans: Arial, Helvetica, sans-serif;
+  --ticker-height: 46px;
+
+  /* Bootstrap uses these for the whole page */
+  --bs-body-font-family: var(--fcb-serif);
+  --bs-body-bg: var(--fcb-bg);
+  --bs-body-color: var(--fcb-ink);
+}
+
+body {
+  padding-bottom: 50px; /* so the ticker never hides page content */
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 3px solid var(--fcb-blue);
+  outline-offset: 3px;
+}
+
+/* side space of every section: 24px on phones, 48px on tablets, 110px on computers */
+.section-pad {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+@media (min-width: 768px) {
+  .section-pad {
+    padding-left: 48px;
+    padding-right: 48px;
+  }
+}
+@media (min-width: 1200px) {
+  .section-pad {
+    padding-left: 110px;
+    padding-right: 110px;
+  }
+}
+
+/* sections that fill the screen: screen minus header (134px) minus ticker */
+.big-section {
+  width: 100%;
+  height: calc(100vh - 134px - var(--ticker-height));
+  min-height: 420px;
+  background: #111;
+  margin-bottom: 30px;
+}
+
+/* anchor targets stop below the sticky section nav */
+section[id] {
+  scroll-margin-top: 70px;
+}
+
+/* ---------- Buttons (Bootstrap .btn + our colours) ---------- */
+.btn-fcb,
+.btn-fcb-outline {
+  --bs-btn-padding-x: 30px;
+  --bs-btn-padding-y: 15px;
+  --bs-btn-font-family: var(--fcb-sans);
+  --bs-btn-font-size: 17px;
+  --bs-btn-font-weight: 700;
+  --bs-btn-border-width: 2px;
+  --bs-btn-border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+.btn-fcb {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--fcb-red);
+  --bs-btn-border-color: var(--fcb-red);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--fcb-red-dark);
+  --bs-btn-hover-border-color: var(--fcb-red-dark);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--fcb-red-dark);
+  --bs-btn-active-border-color: var(--fcb-red-dark);
+  --bs-btn-focus-shadow-rgb: 220, 5, 45;
+}
+
+.btn-fcb-outline {
+  --bs-btn-color: var(--fcb-blue);
+  --bs-btn-bg: #fff;
+  --bs-btn-border-color: var(--fcb-blue);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--fcb-blue);
+  --bs-btn-hover-border-color: var(--fcb-blue);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--fcb-blue-dark);
+  --bs-btn-active-border-color: var(--fcb-blue-dark);
+  --bs-btn-focus-shadow-rgb: 0, 102, 178;
+}
+
+.btn-fcb:hover,
+.btn-fcb-outline:hover {
+  transform: translateY(-2px);
+}
+.btn-fcb:active,
+.btn-fcb-outline:active {
+  transform: translateY(0);
+}
+
+.btn-fcb svg,
+.btn-fcb-outline svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Filter pills (FilterButtons.vue) ---------- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 26px;
+  font-family: var(--fcb-sans);
+}
+
+.filter-btn {
+  padding: 9px 18px;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: white;
+  color: #222;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.filter-btn:hover {
+  background: #eee;
+}
+
+.filter-btn--blue.active {
+  background: var(--fcb-blue);
+  border-color: var(--fcb-blue);
+  color: white;
+}
+.filter-btn--blue.active:hover {
+  background: var(--fcb-blue-dark);
+  border-color: var(--fcb-blue-dark);
+}
+
+.filter-btn--red.active {
+  background: var(--fcb-red);
+  border-color: var(--fcb-red);
+  color: white;
+}
+.filter-btn--red.active:hover {
+  background: var(--fcb-red-dark);
+  border-color: var(--fcb-red-dark);
+}
+
+/* ---------- Forms (Bootstrap form classes + our look) ---------- */
+.fcb-form {
+  font-family: var(--fcb-sans);
+}
+
+.fcb-form .form-label {
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #222;
+}
+
+.fcb-form .form-control,
+.fcb-form .form-select {
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: white;
+  color: var(--fcb-ink);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.fcb-form .form-select {
+  padding-right: 36px;
+}
+.fcb-form .form-control:hover,
+.fcb-form .form-select:hover {
+  border-color: var(--fcb-blue);
+}
+.fcb-form .form-control:focus,
+.fcb-form .form-select:focus {
+  border-color: var(--fcb-blue);
+  box-shadow: 0 0 0 3px rgba(0, 102, 178, 0.18);
+  outline: none;
+}
+
+/* after a submit, only show the fields that are wrong (no green borders / ticks) */
+.fcb-form.was-validated .form-control:valid:not(.is-invalid) {
+  border-color: #ccc;
+  background-image: none;
+  padding-right: 14px;
+}
+.fcb-form.was-validated .form-select:valid:not([multiple]):not([size]) {
+  --bs-form-select-bg-icon: none;
+  border-color: #ccc;
+  padding-right: 36px;
+}
+.fcb-form.was-validated .form-control:valid:not(.is-invalid):focus,
+.fcb-form.was-validated .form-select:valid:focus {
+  border-color: var(--fcb-blue);
+  box-shadow: 0 0 0 3px rgba(0, 102, 178, 0.18);
+}
+.fcb-form.was-validated .form-check-input:valid {
+  border-color: var(--bs-border-color);
+}
+.fcb-form.was-validated .form-check-input:valid:checked {
+  background-color: var(--fcb-red);
+  border-color: var(--fcb-red);
+}
+.fcb-form.was-validated .form-check-input:valid ~ .form-check-label {
+  color: #444;
+}
+
+.fcb-check {
+  margin: 22px 0;
+  font-size: 14px;
+  color: #444;
+}
+.fcb-check .form-check-input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  cursor: pointer;
+}
+.fcb-check .form-check-input:checked {
+  background-color: var(--fcb-red);
+  border-color: var(--fcb-red);
+}
+.fcb-check .form-check-label {
+  padding-left: 4px;
+  cursor: pointer;
+}
+.fcb-check:hover {
+  color: var(--fcb-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .btn-fcb,
+  .btn-fcb-outline {
+    transition: none;
+  }
+}

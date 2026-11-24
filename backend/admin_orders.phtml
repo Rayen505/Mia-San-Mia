@@ -1,0 +1,21 @@
+<?php
+// ADMIN - READ all the orders of all the customers, newest first
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('GET');
+require_admin();
+
+$rows = db()->query(
+    "SELECT o.id, o.status, o.total, o.ordered_at, u.name AS customer_name, u.email AS customer_email, u.photo AS customer_photo
+       FROM orders o JOIN users u ON u.id = o.user_id
+      WHERE o.status <> 'cart'
+      ORDER BY o.id DESC"
+)->fetchAll();
+
+$items  = load_items(array_map(function ($row) { return (int) $row['id']; }, $rows));
+$orders = [];
+foreach ($rows as $row) {
+    $order = order_to_json($row, isset($items[(int) $row['id']]) ? $items[(int) $row['id']] : []);
+    $order['customer'] = ['name' => $row['customer_name'], 'email' => $row['customer_email'], 'photo' => $row['customer_photo']];
+    $orders[] = $order;
+}
+json_out(['orders' => $orders]);

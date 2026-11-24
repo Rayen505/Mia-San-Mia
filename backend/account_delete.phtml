@@ -1,0 +1,31 @@
+<?php
+// POST { password } -> deletes the account of the logged in user (his orders go with it)
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+$user = require_login();
+$data = read_json();
+$pdo  = db();
+
+$password = isset($data['password']) && is_string($data['password']) ? $data['password'] : '';
+$stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ?');
+$stmt->execute([$user['id']]);
+if (!password_verify($password, (string) $stmt->fetchColumn())) {
+    fail('The password is not correct.', 403, ['password' => 'The password is not correct.']);
+}
+
+// the website must always keep one administrator
+if ($user['role'] === 'admin') {
+    $admins = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+    if ($admins <= 1) {
+        fail('You are the only administrator. Create another one before deleting this account.', 409);
+    }
+}
+
+// orders, order lines are deleted by the database (ON DELETE CASCADE)
+$pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$user['id']]);
+delete_upload($user['photo']);
+
+start_session();
+$_SESSION = [];
+session_destroy();
+json_out(['ok' => true]);

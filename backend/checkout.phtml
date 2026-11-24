@@ -1,0 +1,51 @@
+<?php
+// POST -> "Place order": the cart becomes a confirmed order (commande) in the database
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+$user = require_login();
+read_json();
+$pdo = db();
+
+$pdo->beginTransaction();
+try {
+    $cartId = find_open_cart_id($user['id']);
+    $stmt   = $pdo->prepare('SELECT COUNT(*) FROM order_items WHERE order_id = ?');
+    $stmt->execute([(int) $cartId]);
+    if ($cartId === null || (int) $stmt->fetchColumn() === 0) {
+        $pdo->rollBack();
+        fail('Your cart is empty.', 422);
+    }
+
+    // the price of the order is the price of the products at this moment (with the discount of the colour)
+    $stmt = $pdo->prepare(
+        'SELECT oi.id, p.price, COALESCE(pc.discount_percent, 0) AS discount
+           FROM order_items oi
+           JOIN products p ON p.id = oi.product_id
+      LEFT JOIN product_colors pc ON pc.product_id = oi.product_id AND pc.code = oi.color
+          WHERE oi.order_id = ?'
+    );
+    $stmt->execute([$cartId]);
+    $reprice = $pdo->prepare('UPDATE order_items SET unit_price = ? WHERE id = ?');
+    foreach ($stmt->fetchAll() as $line) {
+        $reprice->execute([discounted_price($line['price'], $line['discount']), $line['id']]);
+    }
+
+    $all = load_items([$cartId]);
+    list(, $total) = sum_items($all[$cartId]);
+
+    $pdo->prepare("UPDATE orders SET status = 'confirmed', total = ?, ordered_at = ? WHERE id = ? AND status = 'cart'")
+        ->execute([$total, date('Y-m-d H:i:s'), $cartId]);
+    $pdo->commit();
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    throw $e;
+}
+
+$stmt = $pdo->prepare('SELECT id, status, total, ordered_at FROM orders WHERE id = ?');
+$stmt->execute([$cartId]);
+json_out([
+    'order' => order_to_json($stmt->fetch(), $all[$cartId]),
+    'cart'  => load_cart($user['id']),
+], 201);

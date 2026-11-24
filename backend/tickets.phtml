@@ -1,0 +1,35 @@
+<?php
+// GET  -> the tickets (booked seats) of the logged in user, grouped by match by the website
+require_once __DIR__ . '/includes/tickets.phtml';
+require_method('GET');
+$user = require_login();
+
+$stmt = db()->prepare(
+    'SELECT t.id, t.row_no, t.seat_no, t.price, t.created_at, s.code AS stand_code, s.name AS stand_name,
+            m.id AS match_id, m.competition, m.title, m.home_name, m.home_logo, m.away_name, m.away_logo, m.date_label, m.venue
+       FROM tickets t
+       JOIN stands  s ON s.id = t.stand_id
+       JOIN matches m ON m.id = t.match_id
+      WHERE t.user_id = ?
+      ORDER BY m.id, t.created_at, t.id'
+);
+$stmt->execute([$user['id']]);
+
+$tickets = [];
+foreach ($stmt->fetchAll() as $row) {
+    $tickets[] = [
+        'id'    => (int) $row['id'],
+        'match' => match_to_json([
+            'id' => $row['match_id'], 'competition' => $row['competition'], 'title' => $row['title'],
+            'home_name' => $row['home_name'], 'home_logo' => $row['home_logo'],
+            'away_name' => $row['away_name'], 'away_logo' => $row['away_logo'],
+            'date_label' => $row['date_label'], 'venue' => $row['venue'],
+        ]),
+        'stand'     => ['code' => $row['stand_code'], 'name' => $row['stand_name']],
+        'row'       => (int) $row['row_no'],
+        'seat'      => (int) $row['seat_no'],
+        'price'     => round((float) $row['price'], 2),
+        'booked_at' => $row['created_at'],
+    ];
+}
+json_out(['tickets' => $tickets]);

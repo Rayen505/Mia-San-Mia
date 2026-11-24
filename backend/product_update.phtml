@@ -1,0 +1,54 @@
+<?php
+// ADMIN - UPDATE a product.  POST (multipart form) { id, name, category, price, short_info, description,
+// sizes, printable, featured, image (optional: keeps the old picture if empty) }
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+require_admin();
+$data = read_form();
+$pdo  = db();
+
+$stmt = $pdo->prepare('SELECT * FROM products WHERE id = ?');
+$stmt->execute([isset($data['id']) ? (int) $data['id'] : 0]);
+$old = $stmt->fetch();
+if (!$old) {
+    fail('This product does not exist.', 404);
+}
+
+$errors  = [];
+$product = validate_product($data, $errors);
+list($image, $imageError) = inspect_upload('image');
+if ($imageError !== null) {
+    $errors['image'] = $imageError;
+}
+if ($errors) {
+    fail('Please check the form.', 422, $errors);
+}
+
+$newPath = $image ? store_upload($image, 'products') : null;
+$pdo->beginTransaction();
+try {
+    if ($product['featured']) {
+        $pdo->prepare('UPDATE products SET featured = 0 WHERE id <> ?')->execute([$old['id']]);
+    }
+    $pdo->prepare(
+        'UPDATE products SET name = ?, category = ?, price = ?, image = ?, short_info = ?, description = ?,
+                sizes = ?, printable = ?, featured = ? WHERE id = ?'
+    )->execute([$product['name'], $product['category'], $product['price'], $newPath !== null ? $newPath : $old['image'],
+                $product['short_info'], $product['description'], $product['sizes'], $product['printable'],
+                $product['featured'], $old['id']]);
+    $pdo->commit();
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    if ($newPath !== null) {
+        delete_upload($newPath);
+    }
+    throw $e;
+}
+if ($newPath !== null) {
+    delete_upload($old['image']);           // the old picture is not needed any more
+}
+
+$stmt->execute([$old['id']]);
+json_out(['product' => product_to_json($stmt->fetch())]);

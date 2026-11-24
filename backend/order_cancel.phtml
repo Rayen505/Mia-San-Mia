@@ -1,0 +1,21 @@
+<?php
+// POST { order_id } -> the user cancels one of his orders (only while it is still 'confirmed')
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+$user = require_login();
+$data = read_json();
+$pdo  = db();
+
+$orderId = whole_number(isset($data['order_id']) ? $data['order_id'] : null, 1, PHP_INT_MAX);
+$stmt = $pdo->prepare('SELECT id, status FROM orders WHERE id = ? AND user_id = ? AND status <> ?');
+$stmt->execute([(int) $orderId, $user['id'], 'cart']);
+$order = $stmt->fetch();
+if (!$order) {
+    fail('This order does not exist.', 404);
+}
+if ($order['status'] !== 'confirmed') {
+    fail('This order can no longer be cancelled (status: ' . $order['status'] . ').', 409);
+}
+
+$pdo->prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?")->execute([$order['id']]);
+json_out(['ok' => true]);

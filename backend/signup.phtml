@@ -1,0 +1,59 @@
+<?php
+// POST (multipart form) { name, email, password, photo }
+// -> creates the account in the database (the photo is mandatory), then logs the user in
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+$data = read_form();
+
+$name     = clean_text(isset($data['name']) ? $data['name'] : '', 60);
+$email    = strtolower(trim(isset($data['email']) && is_string($data['email']) ? $data['email'] : ''));
+$password = isset($data['password']) && is_string($data['password']) ? $data['password'] : '';
+list($photo, $photoError) = inspect_upload('photo');
+
+// 1. check the data
+$errors = [];
+if ($name === null || text_length($name) < 2) {
+    $errors['name'] = 'Please enter your full name (2 to 60 characters).';
+}
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 120) {
+    $errors['email'] = 'Please enter a valid email address.';
+}
+if (strlen($password) < 8) {
+    $errors['password'] = 'The password needs at least 8 characters.';
+} elseif (strlen($password) > 72) {
+    $errors['password'] = 'The password is too long (72 characters maximum).';
+}
+if ($photoError !== null) {
+    $errors['photo'] = $photoError;
+} elseif ($photo === null) {
+    $errors['photo'] = 'Please add your photo.';          // the photo is mandatory
+}
+if ($errors) {
+    fail('Please check the form.', 422, $errors);
+}
+
+// 2. is the email already used?
+$pdo  = db();
+$stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+$stmt->execute([$email]);
+if ($stmt->fetch()) {
+    fail('This email is already registered. Try logging in.', 409, ['email' => 'This email is already registered.']);
+}
+
+// 3. save the photo, then the user in the database (the password is hashed, never saved as text)
+$photoPath = store_upload($photo, 'avatars');
+try {
+    $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, photo) VALUES (?, ?, ?, 'user', ?)");
+    $stmt->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT), $photoPath]);
+} catch (PDOException $e) {
+    delete_upload($photoPath);                              // do not keep the photo of a failed sign up
+    if ($e->getCode() === '23000') {                        // two sign ups with the same email at the same time
+        fail('This email is already registered. Try logging in.', 409, ['email' => 'This email is already registered.']);
+    }
+    throw $e;
+}
+$userId = (int) $pdo->lastInsertId();
+
+// 4. the user is logged in right away
+log_in_user($userId);
+json_out(['user' => current_user(), 'cart' => load_cart($userId)], 201);

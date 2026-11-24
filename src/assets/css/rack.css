@@ -1,0 +1,313 @@
+/* =========================================================
+   rack.css – "Overview" of the store page: kits hanging on a
+   rail (3D) + the inspect view where you can turn a shirt
+   ========================================================= */
+
+.rack-section {
+  height: calc(100vh - 20px);
+  min-height: 560px;
+  background: #f3f1ee;
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  cursor: grab;
+  color: #0b0b0d;
+}
+.rack-section.rk-drag {
+  cursor: grabbing;
+}
+
+.rk-h1 {
+  position: absolute;
+  top: 40%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: clamp(56px, 15vw, 220px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: var(--fcb-red);
+  opacity: 0.95;
+  line-height: 0.9;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.rk-scene {
+  position: absolute;
+  inset: 0;
+  perspective: 1500px;
+  overflow: hidden;
+}
+
+.rk-rail {
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  top: 16%;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(#e9e9ec, #8d8d93 50%, #3a3a40);
+  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.25);
+  z-index: 3;
+  pointer-events: none;
+}
+.rk-rail::before,
+.rk-rail::after {
+  content: "";
+  position: absolute;
+  top: -34px;
+  width: 12px;
+  height: 34px;
+  background: linear-gradient(90deg, #555, #bbb, #555);
+}
+.rk-rail::before {
+  left: 8%;
+}
+.rk-rail::after {
+  right: 8%;
+}
+
+.rk-rig {
+  position: absolute;
+  left: 50%;
+  top: calc(16% + 12px);
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+
+.rk-it {
+  position: absolute;
+  width: min(290px, 54vw);
+  left: calc(min(290px, 54vw) / -2);
+  top: 0;
+  transform-origin: 50% 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+  cursor: pointer;
+}
+
+.rk-hk {
+  display: block;
+  width: 44px;
+  height: 58px;
+  margin: -22px auto 0;
+  overflow: visible;
+}
+
+.rk-it img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  margin-top: -6px;
+  pointer-events: none;
+  filter: drop-shadow(0 26px 22px rgba(0, 0, 0, 0.28));
+  transition: transform 0.35s;
+}
+.rk-it.on img {
+  transform: scale(1.07);
+}
+
+.rk-info {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  text-align: center;
+  z-index: 5;
+}
+.rk-nm {
+  font-size: clamp(18px, 3vw, 28px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rk-ps {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #555;
+  margin: 6px 0 14px;
+}
+
+/* ---------- Buttons ---------- */
+.rk-btn {
+  background: var(--fcb-red);
+  color: #fff;
+  border: 0;
+  padding: 13px 28px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  font-size: 12px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  font-family: inherit;
+}
+.rk-btn:hover {
+  background: #0b0b0d;
+  transform: translateY(-2px);
+}
+
+/* ---------- Inspect view (shown with v-show) ---------- */
+.rk-ov {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(243, 241, 238, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.35s;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: #0b0b0d;
+}
+.rk-ov.show {
+  opacity: 1;
+}
+
+.rk-stage {
+  position: relative;
+  width: min(500px, 84vw, 55vh);
+  aspect-ratio: 1; /* was missing in the HTML version: the shirt had 0px height */
+  container-type: inline-size; /* lets the name / number scale with the shirt (cqw) */
+  perspective: 1400px;
+  touch-action: none;
+  transform: scale(0.6);
+  transition: transform 0.7s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+.rk-stage.is-open {
+  transform: scale(1);
+}
+
+.rk-fl {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.rk-fc {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.rk-fc img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 30px 30px rgba(0, 0, 0, 0.3));
+}
+
+.rk-bk {
+  transform: rotateY(180deg);
+}
+
+/* back of the shirt: a plain piece of the shirt covers the front print,
+   the image itself is set in KitRack.vue with :style */
+.rk-pt {
+  position: absolute;
+  left: 30%;
+  top: 16%;
+  width: 42%;
+  height: 35%;
+  background-size: 238% 286%;
+  background-position: 51.7% 95.3%;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 10px 6px rgba(0, 0, 0, 0.08);
+}
+
+.rk-bn,
+.rk-bnum {
+  position: absolute;
+  left: 30%;
+  width: 42%;
+  text-align: center;
+  color: #fff;
+  font-weight: 900;
+}
+.rk-bn {
+  top: 21%;
+  font-size: 4.4cqw;
+  letter-spacing: 0.14em;
+}
+.rk-bnum {
+  top: 27%;
+  font-size: 27cqw;
+  line-height: 1;
+}
+
+.rk-oi {
+  text-align: center;
+  margin-top: 18px;
+  padding: 0 20px;
+  max-width: 560px;
+  position: relative;
+}
+.rk-oi h2 {
+  font-size: clamp(20px, 3.4vw, 30px);
+  text-transform: uppercase;
+  font-weight: 900;
+  font-family: inherit;
+}
+.rk-oi p {
+  font-size: 13px;
+  color: #444;
+  margin: 6px 0 14px;
+  line-height: 1.5;
+}
+
+.rk-bt {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.rk-bt .rk-o {
+  background: transparent;
+  color: #0b0b0d;
+  border: 2px solid #0b0b0d;
+  padding: 11px 18px;
+}
+.rk-bt .rk-o:hover {
+  background: #0b0b0d;
+  color: #fff;
+}
+
+.rk-x {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  background: none;
+  border: 0;
+  color: #0b0b0d;
+  font-size: 22px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.rk-x:hover {
+  color: var(--fcb-red);
+}
+
+@media (max-width: 767.98px) {
+  .rack-section {
+    min-height: 480px;
+  }
+  .rk-bt .rk-o {
+    padding: 9px 12px;
+  }
+}

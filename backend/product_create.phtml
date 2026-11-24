@@ -1,0 +1,45 @@
+<?php
+// ADMIN - CREATE a product.  POST (multipart form) { name, category, price, short_info, description,
+// sizes, printable, featured, image }
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+require_admin();
+$data = read_form();
+$pdo  = db();
+
+$errors  = [];
+$product = validate_product($data, $errors);
+list($image, $imageError) = inspect_upload('image');
+if ($imageError !== null) {
+    $errors['image'] = $imageError;
+} elseif ($image === null) {
+    $errors['image'] = 'Please choose a picture of the product.';
+}
+if ($errors) {
+    fail('Please check the form.', 422, $errors);
+}
+
+$path = store_upload($image, 'products');
+$pdo->beginTransaction();
+try {
+    if ($product['featured']) {
+        $pdo->exec('UPDATE products SET featured = 0');       // only one "match kit" card
+    }
+    $pdo->prepare(
+        'INSERT INTO products (name, category, price, image, short_info, description, sizes, printable, featured)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    )->execute([$product['name'], $product['category'], $product['price'], $path, $product['short_info'],
+                $product['description'], $product['sizes'], $product['printable'], $product['featured']]);
+    $id = (int) $pdo->lastInsertId();
+    $pdo->commit();
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    delete_upload($path);
+    throw $e;
+}
+
+$stmt = $pdo->prepare('SELECT * FROM products WHERE id = ?');
+$stmt->execute([$id]);
+json_out(['product' => product_to_json($stmt->fetch())], 201);

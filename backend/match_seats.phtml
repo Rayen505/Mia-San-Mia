@@ -1,0 +1,21 @@
+<?php
+// GET ?match_id=3 (logged in) -> one match, the 4 stands with their price, and the seats that are not free
+require_once __DIR__ . '/includes/tickets.phtml';
+require_method('GET');
+require_login();   // the seats are only for logged in users
+
+$matchId = whole_number(isset($_GET['match_id']) ? $_GET['match_id'] : null, 1, PHP_INT_MAX);
+$match   = $matchId === null ? null : find_match($matchId);
+if (!$match) {
+    fail('This match does not exist.', 404);
+}
+
+$stands = db()->query('SELECT * FROM stands ORDER BY id')->fetchAll();
+json_out([
+    'match'         => match_to_json($match),
+    'stands'        => array_map('stand_to_json', $stands),
+    'unavailable'   => unavailable_seats((int) $match['id']),
+    'rows'          => SEAT_ROWS,
+    'seats_per_row' => SEATS_PER_ROW,
+    'max_seats'     => MAX_SEATS_PER_BOOKING,
+]);

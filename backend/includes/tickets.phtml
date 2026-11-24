@@ -1,0 +1,84 @@
+<?php
+// =====================================================================
+//  Functions about the matches, the stands and the ticket seats.
+//  Every stand has 8 rows of 10 seats. A seat can be bought once per match.
+// =====================================================================
+
+require_once __DIR__ . '/shop.phtml';
+
+const SEAT_ROWS             = 8;
+const SEATS_PER_ROW         = 10;
+const MAX_SEATS_PER_BOOKING = 8;
+
+// database row -> the shape the Vue website expects
+function match_to_json($row)
+{
+    return [
+        'id'    => (int) $row['id'],
+        'comp'  => $row['competition'],
+        'title' => $row['title'],
+        'home'  => ['name' => $row['home_name'], 'logo' => $row['home_logo']],
+        'away'  => ['name' => $row['away_name'], 'logo' => $row['away_logo']],
+        'date'  => $row['date_label'],
+        'venue' => $row['venue'],
+    ];
+}
+
+function stand_to_json($row)
+{
+    return [
+        'code'  => $row['code'],
+        'name'  => $row['name'],
+        'badge' => $row['badge'],
+        'price' => round((float) $row['price'], 2),
+        'block' => $row['block_label'],
+        'pitch' => $row['pitch_image'],
+    ];
+}
+
+// Demo data: about 3 seats out of 10 are shown as "already sold", so the map looks like a real
+// stadium. The rule is the same for everybody and it is checked again when someone books a seat.
+function seat_sold_by_rule($matchId, $standCode, $row, $seat)
+{
+    $h = ($row * 13 + $seat * 7 + $matchId * 11 + strlen($standCode) * 5 + ord($standCode[0])) % 10;
+    return $h === 2 || $h === 5 || $h === 8;
+}
+
+// All the seats that cannot be bought for a match: [ standCode => [ "row-seat", ... ] ]
+function unavailable_seats($matchId)
+{
+    $pdo = db();
+    $result = [];
+    $codes  = [];
+    foreach ($pdo->query('SELECT id, code FROM stands ORDER BY id')->fetchAll() as $stand) {
+        $codes[(int) $stand['id']] = $stand['code'];
+        $result[$stand['code']]    = [];
+        for ($row = 1; $row <= SEAT_ROWS; $row++) {
+            for ($seat = 1; $seat <= SEATS_PER_ROW; $seat++) {
+                if (seat_sold_by_rule($matchId, $stand['code'], $row, $seat)) {
+                    $result[$stand['code']][$row . '-' . $seat] = true;
+                }
+            }
+        }
+    }
+
+    // plus the seats booked on the website (table tickets)
+    $stmt = $pdo->prepare('SELECT stand_id, row_no, seat_no FROM tickets WHERE match_id = ?');
+    $stmt->execute([$matchId]);
+    foreach ($stmt->fetchAll() as $ticket) {
+        $result[$codes[(int) $ticket['stand_id']]][(int) $ticket['row_no'] . '-' . (int) $ticket['seat_no']] = true;
+    }
+
+    foreach ($result as $code => $seats) {
+        $result[$code] = array_keys($seats);
+    }
+    return $result;
+}
+
+function find_match($matchId)
+{
+    $stmt = db()->prepare('SELECT * FROM matches WHERE id = ?');
+    $stmt->execute([$matchId]);
+    $row = $stmt->fetch();
+    return $row ? $row : null;
+}

@@ -1,0 +1,24 @@
+<?php
+// POST { item_id } -> removes one line from the cart
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+$user = require_login();
+$data = read_json();
+$pdo  = db();
+
+$itemId = whole_number(isset($data['item_id']) ? $data['item_id'] : null, 1, PHP_INT_MAX);
+if ($itemId === null) {
+    fail('Unknown item.', 422);
+}
+
+$stmt = $pdo->prepare(
+    "SELECT oi.id FROM order_items oi JOIN orders o ON o.id = oi.order_id
+      WHERE oi.id = ? AND o.user_id = ? AND o.status = 'cart'"
+);
+$stmt->execute([$itemId, $user['id']]);
+if (!$stmt->fetch()) {
+    fail('This item is not in your cart.', 404);
+}
+
+$pdo->prepare('DELETE FROM order_items WHERE id = ?')->execute([$itemId]);
+json_out(['cart' => load_cart($user['id'])]);

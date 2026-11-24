@@ -1,0 +1,31 @@
+<?php
+// =====================================================================
+//  Settings of the back end. This is the ONLY file you have to edit
+//  when you link the website to the WAMP / phpMyAdmin database.
+// =====================================================================
+
+return [
+
+    // 'sqlite' = the VIRTUAL database: one file, nothing to install, works right now.
+    // 'mysql'  = the real database of WAMP (phpMyAdmin). Import database/bayern.sql first,
+    //            then change this word to 'mysql'.
+    'driver' => 'mysql',
+
+    // virtual database (created automatically the first time)
+    'sqlite' => [
+        'file' => __DIR__ . '/../../database/bayern.sqlite',
+    ],
+
+    // WAMP database (default WAMP user is "root" with an empty password)
+    'mysql' => [
+        'host'     => 'localhost',
+        'port'     => 3306,
+        'dbname'   => 'bayern',
+        'user'     => 'root',
+        'password' => '',
+        'charset'  => 'utf8mb4',
+    ],
+
+    // true = error messages show technical details (useful while you build the project)
+    'debug' => true,
+];

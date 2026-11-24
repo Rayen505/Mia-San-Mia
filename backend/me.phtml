@@ -1,0 +1,10 @@
+<?php
+// GET  -> who is logged in? (and his cart). Called when the website opens.
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('GET');
+
+$user = current_user();
+json_out([
+    'user' => $user,
+    'cart' => $user ? load_cart($user['id']) : null,
+]);

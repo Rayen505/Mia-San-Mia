@@ -1,0 +1,95 @@
+<?php
+// POST { match_id, seats: [ { stand: "sued", row: 3, seat: 5 }, ... ] }
+// -> books the seats for the logged in user (saved in the table tickets). Everything or nothing.
+require_once __DIR__ . '/includes/tickets.phtml';
+require_method('POST');
+$user = require_login();
+$data = read_json();
+$pdo  = db();
+
+// 1. the match
+$matchId = whole_number(isset($data['match_id']) ? $data['match_id'] : null, 1, PHP_INT_MAX);
+$match   = $matchId === null ? null : find_match($matchId);
+if (!$match) {
+    fail('This match does not exist.', 404);
+}
+
+// 2. the seats asked by the browser
+$asked = isset($data['seats']) && is_array($data['seats']) ? $data['seats'] : [];
+if (count($asked) < 1) {
+    fail('Please choose at least one seat.', 422);
+}
+if (count($asked) > MAX_SEATS_PER_BOOKING) {
+    fail('You can book ' . MAX_SEATS_PER_BOOKING . ' seats at most in one booking.', 422);
+}
+
+$stands = [];
+foreach ($pdo->query('SELECT * FROM stands')->fetchAll() as $stand) {
+    $stands[$stand['code']] = $stand;
+}
+
+$seats = [];
+$seen  = [];
+foreach ($asked as $item) {
+    $code = is_array($item) && isset($item['stand']) && is_string($item['stand']) ? $item['stand'] : '';
+    $row  = is_array($item) && isset($item['row']) ? whole_number($item['row'], 1, SEAT_ROWS) : null;
+    $seat = is_array($item) && isset($item['seat']) ? whole_number($item['seat'], 1, SEATS_PER_ROW) : null;
+    if (!isset($stands[$code]) || $row === null || $seat === null) {
+        fail('One of the seats does not exist.', 422);
+    }
+    $key = $code . '-' . $row . '-' . $seat;
+    if (isset($seen[$key])) {
+        fail('The same seat was chosen twice.', 422);
+    }
+    $seen[$key] = true;
+    $seats[] = ['stand' => $stands[$code], 'row' => $row, 'seat' => $seat];
+}
+
+// 3. the price always comes from the table stands. Save all the seats in one transaction.
+$taken = [];
+$pdo->beginTransaction();
+try {
+    $check  = $pdo->prepare('SELECT id FROM tickets WHERE match_id = ? AND stand_id = ? AND row_no = ? AND seat_no = ?');
+    $insert = $pdo->prepare('INSERT INTO tickets (user_id, match_id, stand_id, row_no, seat_no, price) VALUES (?, ?, ?, ?, ?, ?)');
+    $booked = [];
+    foreach ($seats as $s) {
+        $label = $s['stand']['name'] . ' row ' . $s['row'] . ', seat ' . $s['seat'];
+        $check->execute([$match['id'], $s['stand']['id'], $s['row'], $s['seat']]);
+        if (seat_sold_by_rule((int) $match['id'], $s['stand']['code'], $s['row'], $s['seat']) || $check->fetch()) {
+            $taken[] = $label;
+            continue;
+        }
+        try {
+            $insert->execute([$user['id'], $match['id'], $s['stand']['id'], $s['row'], $s['seat'], $s['stand']['price']]);
+        } catch (PDOException $e) {
+            if ($e->getCode() !== '23000') {
+                throw $e;
+            }
+            $taken[] = $label;          // somebody booked it at the same moment
+            continue;
+        }
+        $booked[] = [
+            'id'    => (int) $pdo->lastInsertId(),
+            'stand' => $s['stand']['name'],
+            'row'   => $s['row'],
+            'seat'  => $s['seat'],
+            'price' => round((float) $s['stand']['price'], 2),
+        ];
+    }
+    if ($taken) {
+        $pdo->rollBack();
+        json_out(['error' => 'Some seats are no longer available.', 'taken' => $taken], 409);
+    }
+    $pdo->commit();
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    throw $e;
+}
+
+$cents = 0;
+foreach ($booked as $b) {
+    $cents += (int) round($b['price'] * 100);
+}
+json_out(['tickets' => $booked, 'count' => count($booked), 'total' => $cents / 100], 201);

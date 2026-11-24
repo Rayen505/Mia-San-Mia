@@ -1,0 +1,177 @@
+<?php
+// =====================================================================
+//  Small functions used by every back end file:
+//  JSON answers, errors, reading the request, sessions, login check.
+// =====================================================================
+
+require_once __DIR__ . '/database.phtml';
+
+// Never print PHP warnings inside the JSON (they would break it). They go to the PHP log.
+ini_set('display_errors', '0');
+
+// Any error we did not expect becomes a clean JSON error
+set_exception_handler(function ($e) {
+    $debug = app_config()['debug'] ? $e->getMessage() : null;
+    fail('Something went wrong on the server.', 500, [], $debug);
+});
+
+// ---------- answers ----------
+
+function json_out($data, $status = 200)
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+// { "error": "message", "fields": { "email": "message" } }
+function fail($message, $status = 400, $fields = [], $debug = null)
+{
+    $body = ['error' => $message];
+    if ($fields) {
+        $body['fields'] = $fields;
+    }
+    if ($debug !== null && app_config()['debug']) {
+        $body['debug'] = $debug;
+    }
+    json_out($body, $status);
+}
+
+// ---------- reading the request ----------
+
+function require_method($method)
+{
+    if ($_SERVER['REQUEST_METHOD'] !== $method) {
+        header('Allow: ' . $method);
+        fail('Method not allowed. Use ' . $method . '.', 405);
+    }
+}
+
+// Body of a POST request. It must be JSON: browsers do not allow other websites
+// to send JSON with our cookies, so this also protects against CSRF attacks.
+function read_json()
+{
+    $type = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
+    if (stripos($type, 'application/json') !== 0) {
+        fail('Send the data as JSON (Content-Type: application/json).', 415);
+    }
+    $data = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($data)) {
+        fail('The request body is not valid JSON.', 400);
+    }
+    return $data;
+}
+
+// Body of a POST request that contains a FILE (multipart/form-data). Forms of other websites
+// can send this kind of request, so we also require a header that only our own JavaScript adds.
+function read_form()
+{
+    $header = isset($_SERVER['HTTP_X_REQUESTED_WITH']) ? $_SERVER['HTTP_X_REQUESTED_WITH'] : '';
+    if ($header !== 'bayern') {
+        fail('This request does not come from the website.', 400);
+    }
+    // when the upload is bigger than post_max_size, PHP gives empty $_POST and $_FILES
+    if (empty($_POST) && empty($_FILES) && !empty($_SERVER['CONTENT_LENGTH'])) {
+        fail('The upload is too big. Use an image of 2 MB maximum.', 413);
+    }
+    return $_POST;
+}
+
+function text_length($text)
+{
+    return function_exists('mb_strlen') ? mb_strlen($text, 'UTF-8') : strlen($text);
+}
+
+// Trims and cleans a text. Returns '' if it is empty / not a text,
+// and null if it is longer than $max characters.
+function clean_text($value, $max)
+{
+    if (!is_string($value) && !is_numeric($value)) {
+        return '';
+    }
+    $value = trim((string) $value);
+    $value = preg_replace('/[\x00-\x1F\x7F]/u', '', $value);
+    if ($value === null) {                 // not valid UTF-8
+        return '';
+    }
+    return text_length($value) > $max ? null : $value;
+}
+
+function upper($text)
+{
+    return function_exists('mb_strtoupper') ? mb_strtoupper($text, 'UTF-8') : strtoupper($text);
+}
+
+// ---------- session / login ----------
+
+function start_session()
+{
+    if (session_status() === PHP_SESSION_NONE) {
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path'     => '/',
+            'httponly' => true,    // JavaScript cannot read the cookie
+            'samesite' => 'Lax',
+        ]);
+        session_name('BAYERNSESSID');
+        session_start();
+    }
+}
+
+// the logged in user (array) or null
+function current_user()
+{
+    start_session();
+    if (empty($_SESSION['user_id'])) {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT id, name, email, role, photo, created_at FROM users WHERE id = ?');
+    $stmt->execute([$_SESSION['user_id']]);
+    $user = $stmt->fetch();
+    if (!$user) {                       // the account was deleted
+        $_SESSION = [];
+        return null;
+    }
+    return public_user($user);
+}
+
+function require_login()
+{
+    $user = current_user();
+    if ($user === null) {
+        fail('Please log in first.', 401);
+    }
+    return $user;
+}
+
+// only the administrator can use the management pages
+function require_admin()
+{
+    $user = require_login();
+    if ($user['role'] !== 'admin') {
+        fail('Only the administrator can do this.', 403);
+    }
+    return $user;
+}
+
+function log_in_user($userId)
+{
+    start_session();
+    session_regenerate_id(true);        // new session id after login (stops session fixation)
+    $_SESSION['user_id'] = (int) $userId;
+}
+
+// only what the website may see (never the password hash)
+function public_user($row)
+{
+    return [
+        'id'         => (int) $row['id'],
+        'name'       => $row['name'],
+        'email'      => $row['email'],
+        'role'       => $row['role'],
+        'photo'      => $row['photo'],
+        'created_at' => isset($row['created_at']) ? $row['created_at'] : null,
+    ];
+}

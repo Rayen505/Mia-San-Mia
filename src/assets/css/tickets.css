@@ -1,0 +1,49 @@
+/* =========================================================
+   tickets.css – tickets page (list of matches)
+   ========================================================= */
+
+.tickets-intro {
+  margin: -12px 0 24px;
+  font-family: var(--fcb-sans);
+  color: #555;
+}
+
+/* the whole match card is a link to the page of the match */
+.match-link {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+  font-family: var(--fcb-sans);
+}
+.match-link .match-card {
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.match-link:hover .match-card {
+  transform: translateY(-4px);
+  border-color: var(--fcb-blue);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+.match-cta {
+  display: inline-block;
+  margin-top: 18px;
+  padding: 9px 22px;
+  border: 2px solid var(--fcb-blue);
+  border-radius: 6px;
+  color: var(--fcb-blue);
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 0.2s, color 0.2s;
+}
+.match-link:hover .match-cta {
+  background: var(--fcb-blue);
+  color: white;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-link .match-card,
+  .match-cta {
+    transition: none;
+  }
+}

@@ -1,0 +1,7 @@
+node_modules
+dist
+.DS_Store
+database/bayern.sqlite
+backend/uploads/avatars/*
+!backend/uploads/avatars/admin.png
+backend/uploads/products/*

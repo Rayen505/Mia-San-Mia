@@ -1,0 +1,27 @@
+<?php
+// POST { email, password } -> checks the password and opens the session
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+$data = read_json();
+
+$email    = strtolower(trim(isset($data['email']) && is_string($data['email']) ? $data['email'] : ''));
+$password = isset($data['password']) && is_string($data['password']) ? $data['password'] : '';
+
+$stmt = db()->prepare('SELECT id, name, email, password_hash, role, photo, created_at FROM users WHERE email = ?');
+$stmt->execute([$email]);
+$user = $stmt->fetch();
+
+// If the email does not exist we still check a fake hash, so the answer takes the same time.
+$dummyHash = '$2y$10$6KZOUA3F2ju/Xmrhso70luGBuaJtJD9jYV7I0Oa90UWhj1mhxgKra';
+$ok = password_verify($password, $user ? $user['password_hash'] : $dummyHash);
+
+if (!$user || !$ok) {
+    // same message for "unknown email" and "wrong password"
+    fail('Incorrect email or password.', 401);
+}
+
+log_in_user($user['id']);
+json_out([
+    'user' => public_user($user),
+    'cart' => load_cart($user['id']),
+]);

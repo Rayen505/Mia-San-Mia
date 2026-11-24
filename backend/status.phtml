@@ -1,0 +1,34 @@
+<?php
+// GET -> tells you WHICH database the website is using and how many rows each table has.
+// Open it in the browser:  http://localhost/bayern-vue/backend/status.phtml
+// It only works while 'debug' is true in includes/config.phtml.
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('GET');
+
+$config = app_config();
+if (!$config['debug']) {
+    fail('This page only works when debug is true in includes/config.phtml.', 404);
+}
+
+$pdo    = db();
+$tables = [];
+foreach (['users', 'products', 'orders', 'order_items', 'matches', 'stands', 'tickets', 'contest_entries'] as $table) {
+    $tables[$table] = (int) $pdo->query('SELECT COUNT(*) FROM ' . $table)->fetchColumn();   // fixed list of names
+}
+
+if ($config['driver'] === 'mysql') {
+    $m = $config['mysql'];
+    $answer = [
+        'driver'   => 'mysql',
+        'database' => $m['dbname'] . ' on ' . $m['host'] . ':' . $m['port'] . ' (user ' . $m['user'] . ')',
+        'message'  => 'The website uses the MySQL database "' . $m['dbname'] . '". What you see in phpMyAdmin in THIS database is what the website shows.',
+    ];
+} else {
+    $answer = [
+        'driver'   => 'sqlite',
+        'database' => 'VIRTUAL database (the file database/bayern.sqlite)',
+        'message'  => 'The website uses the VIRTUAL database. phpMyAdmin cannot see it, so changes made in phpMyAdmin do not appear on the website. To use the WAMP database: import database/bayern.sql in phpMyAdmin, then change \'driver\' to \'mysql\' in backend/includes/config.phtml.',
+    ];
+}
+$answer['rows'] = $tables;
+json_out($answer);

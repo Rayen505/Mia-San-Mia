@@ -1,0 +1,88 @@
+<?php
+// =====================================================================
+//  Connection to the database.
+//  db() gives a PDO object. The same code works with the virtual
+//  database (SQLite) and with MySQL, only config.phtml changes.
+// =====================================================================
+
+// version of the virtual database (same number as PRAGMA user_version in sqlite_schema.sql)
+const SCHEMA_VERSION = 6;
+
+function app_config()
+{
+    static $config = null;
+    if ($config === null) {
+        $config = require __DIR__ . '/config.phtml';
+    }
+    return $config;
+}
+
+function db()
+{
+    static $pdo = null;
+    if ($pdo !== null) {
+        return $pdo;
+    }
+
+    $config  = app_config();
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,   // errors become exceptions
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,         // rows come back as arrays
+        PDO::ATTR_EMULATE_PREPARES   => false,                    // real prepared statements
+    ];
+
+    try {
+        if ($config['driver'] === 'mysql') {
+            $m   = $config['mysql'];
+            $dsn = 'mysql:host=' . $m['host'] . ';port=' . $m['port'] . ';dbname=' . $m['dbname'] . ';charset=' . $m['charset'];
+            $pdo = new PDO($dsn, $m['user'], $m['password'], $options);
+        } else {
+            $pdo = open_virtual_database($config['sqlite']['file'], $options);
+        }
+    } catch (PDOException $e) {
+        $hint = $config['driver'] === 'mysql'
+            ? 'Cannot connect to MySQL. Is WAMP running (green icon) and is the database "' . $config['mysql']['dbname'] . '" imported?'
+            : 'Cannot open the virtual database. Is the PHP extension pdo_sqlite enabled?';
+        fail($hint, 500, [], $e->getMessage());
+    }
+
+    return $pdo;
+}
+
+// The virtual database is a single file. If it does not exist yet (or if it is an old
+// version), the tables, the administrator and the store products are created automatically.
+function open_virtual_database($file, $options)
+{
+    $folder = dirname($file);
+    if (!is_dir($folder)) {
+        mkdir($folder, 0777, true);
+    }
+
+    $pdo = new PDO('sqlite:' . $file, null, null, $options);
+    $pdo->setAttribute(PDO::ATTR_TIMEOUT, 10);   // wait if another request is writing
+    $pdo->exec('PRAGMA foreign_keys = ON');
+
+    if (!virtual_database_ready($pdo)) {
+        // BEGIN IMMEDIATE: if two requests arrive together, only one creates the tables
+        $pdo->exec('BEGIN IMMEDIATE');
+        try {
+            if (!virtual_database_ready($pdo)) {
+                $database = __DIR__ . '/../../database/';
+                $pdo->exec(file_get_contents($database . 'sqlite_schema.sql'));
+                $pdo->exec(file_get_contents($database . 'seed.sql'));
+            }
+            $pdo->exec('COMMIT');
+        } catch (Exception $e) {
+            $pdo->exec('ROLLBACK');
+            throw $e;
+        }
+    }
+
+    return $pdo;
+}
+
+// true if the file already has the tables of the current version
+function virtual_database_ready($pdo)
+{
+    return (int) $pdo->query('PRAGMA user_version')->fetchColumn() === SCHEMA_VERSION;
+}

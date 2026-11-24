@@ -1,0 +1,79 @@
+<?php
+// =====================================================================
+//  Images uploaded by the users (profile photo) and by the administrator
+//  (product pictures). They are saved in backend/uploads/.
+//  Rules: JPG, PNG or WEBP only, 2 MB maximum, real image (not just the
+//  file name), and the file gets a random name (never the user's one).
+// =====================================================================
+
+const UPLOAD_MAX_BYTES = 2097152;   // 2 MB
+
+function uploads_root()
+{
+    return __DIR__ . '/../uploads';
+}
+
+// Checks the file sent in the form field $field.
+// Returns [file, error]:  [null, null] = no file sent,  [null, 'message'] = refused,  [file, null] = valid.
+function inspect_upload($field)
+{
+    if (!isset($_FILES[$field])) {
+        return [null, null];
+    }
+    $f = $_FILES[$field];
+    if (is_array($f['error'])) {
+        return [null, 'Send one file only.'];
+    }
+    if ($f['error'] === UPLOAD_ERR_NO_FILE) {
+        return [null, null];
+    }
+    if ($f['error'] === UPLOAD_ERR_INI_SIZE || $f['error'] === UPLOAD_ERR_FORM_SIZE) {
+        return [null, 'The image is too big (2 MB maximum).'];
+    }
+    if ($f['error'] !== UPLOAD_ERR_OK) {
+        return [null, 'The upload failed. Please try again.'];
+    }
+    if ($f['size'] <= 0 || $f['size'] > UPLOAD_MAX_BYTES) {
+        return [null, 'The image is too big (2 MB maximum).'];
+    }
+    if (!is_uploaded_file($f['tmp_name'])) {
+        return [null, 'Invalid upload.'];
+    }
+
+    // look INSIDE the file: is it really a picture, and which type?
+    $info = @getimagesize($f['tmp_name']);
+    $types = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'];
+    if (!$info || !isset($types[$info[2]])) {
+        return [null, 'Please choose a JPG, PNG or WEBP image.'];
+    }
+    if ($info[0] > 5000 || $info[1] > 5000) {
+        return [null, 'The image is too large (5000 pixels maximum).'];
+    }
+    return [['tmp' => $f['tmp_name'], 'ext' => $types[$info[2]]], null];
+}
+
+// Saves a valid file in uploads/<folder>/ and returns its path, e.g. "uploads/avatars/9f8a….jpg"
+function store_upload($file, $folder)
+{
+    $dir = uploads_root() . '/' . $folder;
+    if (!is_dir($dir)) {
+        mkdir($dir, 0777, true);
+    }
+    $name = bin2hex(random_bytes(12)) . '.' . $file['ext'];
+    if (!move_uploaded_file($file['tmp'], $dir . '/' . $name)) {
+        throw new Exception('Cannot save the image. Is the folder backend/uploads writable?');
+    }
+    return 'uploads/' . $folder . '/' . $name;
+}
+
+// Deletes an image we saved earlier. Only files with a name made by store_upload() are deleted
+// (so the default administrator photo, or any other path, is never touched).
+function delete_upload($path)
+{
+    if (preg_match('#^uploads/(avatars|products)/([a-f0-9]{24}\.(jpg|png|webp))$#', (string) $path, $m)) {
+        $file = uploads_root() . '/' . $m[1] . '/' . $m[2];
+        if (is_file($file)) {
+            @unlink($file);
+        }
+    }
+}

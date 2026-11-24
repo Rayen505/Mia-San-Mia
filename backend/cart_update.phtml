@@ -1,0 +1,26 @@
+<?php
+// POST { item_id, quantity } -> changes the quantity of one line of the cart
+require_once __DIR__ . '/includes/shop.phtml';
+require_method('POST');
+$user = require_login();
+$data = read_json();
+$pdo  = db();
+
+$itemId   = whole_number(isset($data['item_id']) ? $data['item_id'] : null, 1, PHP_INT_MAX);
+$quantity = whole_number(isset($data['quantity']) ? $data['quantity'] : null, 1, MAX_PER_LINE);
+if ($itemId === null || $quantity === null) {
+    fail('Quantity must be between 1 and ' . MAX_PER_LINE . '.', 422);
+}
+
+// the line must belong to the cart of THIS user
+$stmt = $pdo->prepare(
+    "SELECT oi.id FROM order_items oi JOIN orders o ON o.id = oi.order_id
+      WHERE oi.id = ? AND o.user_id = ? AND o.status = 'cart'"
+);
+$stmt->execute([$itemId, $user['id']]);
+if (!$stmt->fetch()) {
+    fail('This item is not in your cart.', 404);
+}
+
+$pdo->prepare('UPDATE order_items SET quantity = ? WHERE id = ?')->execute([$quantity, $itemId]);
+json_out(['cart' => load_cart($user['id'])]);
